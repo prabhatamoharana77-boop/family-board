@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Family Board</title>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body style="margin:0; padding:0; min-height:100vh; background-color:#fdf8f0; font-family:'Segoe UI', system-ui, -apple-system, sans-serif; display:flex; flex-direction:column; align-items:center;">
+
+  <!-- Header -->
+  <header style="width:100%; background:linear-gradient(135deg, #0d9488, #0f766e); padding:2rem 1rem 2.5rem; text-align:center; box-shadow:0 4px 20px rgba(13,148,136,0.25); position:relative;">
+    <div style="font-size:2rem; margin-bottom:0.25rem;">🏡</div>
+    <h1 style="margin:0; color:#ffffff; font-size:2rem; font-weight:700; letter-spacing:-0.5px;">Family Board</h1>
+    <p style="margin:0.4rem 0 0; color:#99f6e4; font-size:0.95rem; font-weight:400;">share what is happening</p>
+    <!-- Logout button (only shown when logged in) -->
+    <div x-data x-show="!!localStorage.getItem('token')" style="position:absolute; top:1.25rem; right:1.25rem;">
+      <button
+        @click="localStorage.removeItem('token'); window.location.reload()"
+        style="background:rgba(255,255,255,0.15); color:#ffffff; border:1.5px solid rgba(255,255,255,0.4); border-radius:8px; padding:0.4rem 0.9rem; font-size:0.8rem; font-weight:600; cursor:pointer;"
+      >Logout</button>
+    </div>
+  </header>
+
+  <!-- App root -->
+  <div
+    x-data="{
+      token: localStorage.getItem('token') || null,
+
+      loginEmail: '',
+      loginPassword: '',
+      loginError: '',
+      async doLogin() {
+        this.loginError = '';
+        const res = await fetch('http://localhost:3000/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: this.loginEmail, password: this.loginPassword })
+        });
+        const data = await res.json();
+        if (!res.ok) { this.loginError = data.error || 'Login failed'; return; }
+        this.token = data.token;
+        localStorage.setItem('token', data.token);
+        await this.init();
+      },
+      logout() {
+        this.token = null;
+        localStorage.removeItem('token');
+      },
+
+      messages: [],
+      newName: '',
+      newText: '',
+      formatTime(isoString) {
+        const d = new Date(isoString);
+        return d.toLocaleString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      },
+      async init() {
+        if (!this.token) return;
+        const res = await fetch('http://localhost:3000/api/messages');
+        this.messages = await res.json();
+      },
+      async postMessage() {
+        const name = this.newName.trim();
+        const text = this.newText.trim();
+        if (!name || !text) return;
+        const res = await fetch('http://localhost:3000/api/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + this.token
+          },
+          body: JSON.stringify({ name, text })
+        });
+        const newMsg = await res.json();
+        this.messages.unshift(newMsg);
+        this.newName = '';
+        this.newText = '';
+      }
+    }"
+    x-init="init()"
+    style="width:100%; max-width:640px; padding:2rem 1rem 0; box-sizing:border-box; flex:1; display:flex; flex-direction:column;"
+  >
+
+    <!-- Login screen -->
+    <div x-show="!token" style="flex:1; display:flex; align-items:center; justify-content:center; padding:2rem 0;">
+      <div style="background:#ffffff; border-radius:20px; padding:2rem 2rem; box-shadow:0 4px 24px rgba(0,0,0,0.10); border:1px solid #f0ebe0; width:100%;">
+        <p style="margin:0 0 1.5rem; font-weight:700; color:#1c4a47; font-size:1.15rem; text-align:center;">Welcome back 👋</p>
+
+        <div style="margin-bottom:0.75rem;">
+          <label style="display:block; font-size:0.8rem; color:#78716c; font-weight:500; margin-bottom:0.3rem;">Email</label>
+          <input
+            x-model="loginEmail"
+            type="email"
+            placeholder="family@home.com"
+            style="width:100%; box-sizing:border-box; padding:0.65rem 1rem; border:1.5px solid #e7e0d5; border-radius:10px; font-size:0.95rem; color:#292524; background:#fdf8f0; outline:none; transition:border-color 0.2s;"
+            onfocus="this.style.borderColor='#0d9488'"
+            onblur="this.style.borderColor='#e7e0d5'"
+            @keydown.enter="doLogin()"
+          />
+        </div>
+
+        <div style="margin-bottom:1.25rem;">
+          <label style="display:block; font-size:0.8rem; color:#78716c; font-weight:500; margin-bottom:0.3rem;">Password</label>
+          <input
+            x-model="loginPassword"
+            type="password"
+            placeholder="••••••••"
+            style="width:100%; box-sizing:border-box; padding:0.65rem 1rem; border:1.5px solid #e7e0d5; border-radius:10px; font-size:0.95rem; color:#292524; background:#fdf8f0; outline:none; transition:border-color 0.2s;"
+            onfocus="this.style.borderColor='#0d9488'"
+            onblur="this.style.borderColor='#e7e0d5'"
+            @keydown.enter="doLogin()"
+          />
+        </div>
+
+        <p x-show="loginError" x-text="loginError" style="margin:0 0 1rem; color:#dc2626; font-size:0.85rem; text-align:center;"></p>
+
+        <button
+          @click="doLogin()"
+          style="width:100%; padding:0.75rem; background:linear-gradient(135deg, #0d9488, #0f766e); color:#ffffff; border:none; border-radius:12px; font-size:1rem; font-weight:600; cursor:pointer; letter-spacing:0.2px; box-shadow:0 3px 12px rgba(13,148,136,0.35);"
+          onmousedown="this.style.transform='scale(0.98)'"
+          onmouseup="this.style.transform='scale(1)'"
+          onmouseleave="this.style.transform='scale(1)'"
+        >
+          Login 🔑
+        </button>
+      </div>
+    </div>
+
+    <!-- Message board (shown when logged in) -->
+    <div x-show="token" style="flex:1; display:flex; flex-direction:column;">
+
+      <!-- Message feed -->
+      <section style="flex:1; display:flex; flex-direction:column; gap:1rem; padding-bottom:1.5rem;">
+        <template x-for="(msg, index) in messages" :key="index">
+          <div style="background:#ffffff; border-radius:18px; padding:1.1rem 1.4rem; box-shadow:0 2px 12px rgba(0,0,0,0.07); border:1px solid #f0ebe0; position:relative;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:0.5rem;">
+              <div style="display:flex; align-items:center; gap:0.65rem;">
+                <!-- Avatar circle -->
+                <div
+                  style="width:38px; height:38px; border-radius:50%; background:linear-gradient(135deg, #0d9488, #5eead4); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:0.9rem; flex-shrink:0;"
+                  x-text="msg.name.charAt(0).toUpperCase()"
+                ></div>
+                <span style="font-weight:600; color:#1c4a47; font-size:0.95rem;" x-text="msg.name"></span>
+              </div>
+              <span style="font-size:0.75rem; color:#a8a29e;" x-text="formatTime(msg.created_at)"></span>
+            </div>
+            <p style="margin:0; color:#44403c; font-size:0.97rem; line-height:1.6;" x-text="msg.text"></p>
+          </div>
+        </template>
+      </section>
+
+      <!-- Compose form -->
+      <div style="position:sticky; bottom:0; padding:1rem 0 2rem; background:linear-gradient(to top, #fdf8f0 80%, transparent);">
+        <div style="background:#ffffff; border-radius:20px; padding:1.4rem 1.5rem; box-shadow:0 4px 24px rgba(0,0,0,0.10); border:1px solid #f0ebe0;">
+          <p style="margin:0 0 1rem; font-weight:600; color:#1c4a47; font-size:0.95rem;">✏️ Leave a message</p>
+
+          <!-- Name field -->
+          <div style="margin-bottom:0.75rem;">
+            <label style="display:block; font-size:0.8rem; color:#78716c; font-weight:500; margin-bottom:0.3rem;">Your name</label>
+            <input
+              x-model="newName"
+              type="text"
+              placeholder="e.g. Mom, Dad, Priya…"
+              style="width:100%; box-sizing:border-box; padding:0.65rem 1rem; border:1.5px solid #e7e0d5; border-radius:10px; font-size:0.95rem; color:#292524; background:#fdf8f0; outline:none; transition:border-color 0.2s;"
+              onfocus="this.style.borderColor='#0d9488'"
+              onblur="this.style.borderColor='#e7e0d5'"
+            />
+          </div>
+
+          <!-- Message field -->
+          <div style="margin-bottom:1rem;">
+            <label style="display:block; font-size:0.8rem; color:#78716c; font-weight:500; margin-bottom:0.3rem;">Message</label>
+            <textarea
+              x-model="newText"
+              placeholder="What's on your mind?"
+              rows="3"
+              style="width:100%; box-sizing:border-box; padding:0.65rem 1rem; border:1.5px solid #e7e0d5; border-radius:10px; font-size:0.95rem; color:#292524; background:#fdf8f0; outline:none; resize:none; font-family:inherit; transition:border-color 0.2s;"
+              onfocus="this.style.borderColor='#0d9488'"
+              onblur="this.style.borderColor='#e7e0d5'"
+            ></textarea>
+          </div>
+
+          <!-- Post button -->
+          <button
+            @click="postMessage()"
+            style="width:100%; padding:0.75rem; background:linear-gradient(135deg, #0d9488, #0f766e); color:#ffffff; border:none; border-radius:12px; font-size:1rem; font-weight:600; cursor:pointer; letter-spacing:0.2px; box-shadow:0 3px 12px rgba(13,148,136,0.35); transition:opacity 0.2s, transform 0.1s;"
+            onmousedown="this.style.transform='scale(0.98)'"
+            onmouseup="this.style.transform='scale(1)'"
+            onmouseleave="this.style.transform='scale(1)'"
+          >
+            Post Message 💬
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+</body>
+</html>
