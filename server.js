@@ -97,6 +97,10 @@ async function start() {
     process.exit(1)
   }
 
+  await sql`CREATE TABLE IF NOT EXISTS messages (id SERIAL PRIMARY KEY, name TEXT NOT NULL, text TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())`
+  await sql`CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, email TEXT UNIQUE NOT NULL, password_hash TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())`
+  console.log('Tables ready')
+
   await seed()
 
   serve({ fetch: app.fetch, port: 3000 }, () => {
