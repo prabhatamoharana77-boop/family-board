@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 
 const JWT_SECRET = 'family-board-secret-change-this-in-production'
+const PORT = process.env.PORT || 3000
 
 const sql = postgres(process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost/familyboard')
 
@@ -30,6 +31,25 @@ async function requireAuth(c, next) {
 
 app.get('/', (c) => {
   return c.json({ message: 'Family Board API is running' })
+})
+
+app.get('/api/messages', async (c) => {
+  try {
+    const messages = await sql`SELECT * FROM messages ORDER BY created_at DESC`
+    return c.json(messages)
+  } catch (err) {
+    return c.json({ error: 'Failed to fetch messages' }, 500)
+  }
+})
+
+app.post('/api/messages', requireAuth, async (c) => {
+  const { name, text } = await c.req.json()
+  try {
+    const [message] = await sql`INSERT INTO messages (name, text) VALUES (${name}, ${text}) RETURNING *`
+    return c.json(message, 201)
+  } catch (err) {
+    return c.json({ error: 'Failed to save message' }, 500)
+  }
 })
 
 app.post('/api/register', async (c) => {
@@ -60,25 +80,6 @@ app.post('/api/login', async (c) => {
   return c.json({ token })
 })
 
-app.get('/api/messages', async (c) => {
-  try {
-    const messages = await sql`SELECT * FROM messages ORDER BY created_at DESC`
-    return c.json(messages)
-  } catch (err) {
-    return c.json({ error: 'Failed to fetch messages' }, 500)
-  }
-})
-
-app.post('/api/messages', requireAuth, async (c) => {
-  const { name, text } = await c.req.json()
-  try {
-    const [message] = await sql`INSERT INTO messages (name, text) VALUES (${name}, ${text}) RETURNING *`
-    return c.json(message, 201)
-  } catch (err) {
-    return c.json({ error: 'Failed to save message' }, 500)
-  }
-})
-
 async function seed() {
   const [existing] = await sql`SELECT id FROM users LIMIT 1`
   if (!existing) {
@@ -103,8 +104,8 @@ async function start() {
 
   await seed()
 
-  serve({ fetch: app.fetch, port: 3000 }, () => {
-    console.log('Server running at http://localhost:3000')
+  serve({ fetch: app.fetch, port: PORT }, () => {
+    console.log(`Server running at http://localhost:${PORT}`)
   })
 }
 
