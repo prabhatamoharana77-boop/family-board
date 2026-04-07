@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken'
 
 const JWT_SECRET = 'family-board-secret-change-this-in-production'
 
-const sql = postgres('postgresql://postgres:postgres@localhost/familyboard')
+const sql = postgres(process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost/familyboard')
 
 const app = new Hono()
 
