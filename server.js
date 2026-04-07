@@ -3,9 +3,9 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import postgres from 'postgres'
 import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
+import { SignJWT, jwtVerify } from 'jose'
 
-const JWT_SECRET = 'family-board-secret-change-this-in-production'
+const JWT_SECRET = new TextEncoder().encode('family-board-secret-change-this-in-production')
 const PORT = process.env.PORT || 3000
 
 const sql = postgres(process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost/familyboard')
@@ -21,8 +21,8 @@ async function requireAuth(c, next) {
   }
   const token = authHeader.slice(7)
   try {
-    const decoded = jwt.verify(token, JWT_SECRET)
-    c.set('user', decoded)
+    const { payload } = await jwtVerify(token, JWT_SECRET)
+    c.set('user', payload)
   } catch {
     return c.json({ error: 'Unauthorised' }, 401)
   }
@@ -76,7 +76,7 @@ app.post('/api/login', async (c) => {
   if (!valid) {
     return c.json({ error: 'Invalid credentials' }, 401)
   }
-  const token = jwt.sign({ sub: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' })
+  const token = await new SignJWT({ sub: String(user.id), email: user.email }).setProtectedHeader({ alg: 'HS256' }).setExpirationTime('7d').sign(JWT_SECRET)
   return c.json({ token })
 })
 
